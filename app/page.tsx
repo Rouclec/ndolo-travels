@@ -35,6 +35,58 @@ export default function BusTicketingApp() {
     email: "",
   })
 
+  // AI Chatbot state
+  const [chatHistory, setChatHistory] = useState([
+    { type: "ai", text: "👋 Hello! I'm your AI travel assistant. How can I help you today?" },
+    { type: "ai", text: "You can select an option below or type your question." },
+  ])
+  const [userMessage, setUserMessage] = useState("")
+
+  const handleAIChatOption = (option: string) => {
+    let aiResponse = ""
+    switch (option) {
+      case "find_routes":
+        aiResponse =
+          "To find routes, please use the 'Find Your Journey' search form on the main page. Enter your origin, destination, and date to see available buses."
+        break
+      case "check_schedules":
+        aiResponse =
+          "You can check schedules by performing a search on the main page. The results will show departure times and durations for each bus."
+        break
+      case "booking_assistance":
+        aiResponse =
+          "For booking assistance, ensure all passenger details are correctly filled on the booking page. If you face issues, try refreshing the page or contact support."
+        break
+      case "payment_support":
+        aiResponse =
+          "For payment issues, please ensure you have sufficient funds and dial the USSD code provided on the payment screen. If problems persist, contact your mobile money provider."
+        break
+      default:
+        aiResponse = "I'm sorry, I didn't understand that. Please select an option or rephrase your question."
+    }
+    setChatHistory((prev) => [...prev, { type: "user", text: option }, { type: "ai", text: aiResponse }])
+    setUserMessage("") // Clear input after selection
+  }
+
+  const handleSendMessage = () => {
+    if (userMessage.trim() === "") return
+    setChatHistory((prev) => [...prev, { type: "user", text: userMessage }])
+    // Simulate AI response for typed messages (can be expanded with actual AI model)
+    const lowerCaseMessage = userMessage.toLowerCase()
+    let aiResponse =
+      "I'm still learning to understand complex questions. Please try selecting an option or ask a simpler question."
+    if (lowerCaseMessage.includes("hello") || lowerCaseMessage.includes("hi")) {
+      aiResponse = "Hello there! How can I assist you with your travel plans today?"
+    } else if (lowerCaseMessage.includes("ticket")) {
+      aiResponse = "Are you looking to book a ticket, or do you need help with an existing ticket?"
+    } else if (lowerCaseMessage.includes("payment")) {
+      aiResponse =
+        "For payment issues, please ensure you have sufficient funds and dial the USSD code provided on the payment screen."
+    }
+    setChatHistory((prev) => [...prev, { type: "ai", text: aiResponse }])
+    setUserMessage("")
+  }
+
   const popularRoutes = [
     { from: "Buea", to: "Douala", price: "1500 FCFA", duration: "1h 45m", available: 20 },
     { from: "Buea", to: "Yaoundé", price: "3500 FCFA", duration: "4h 30m", available: 12 },
@@ -66,9 +118,9 @@ export default function BusTicketingApp() {
           <div className="flex flex-col sm:flex-row sm:justify-between items-center h-auto sm:h-16 py-2 sm:py-0">
             <div className="flex items-center space-x-2 mb-2 sm:mb-0">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">NT</span>
+                <span className="text-white font-bold text-sm">NT</span> {/* Updated initials */}
               </div>
-              <h1 className="text-xl font-bold text-gray-900">NdoloTravel</h1>
+              <h1 className="text-xl font-bold text-gray-900">NdoloTravel</h1> {/* Updated name */}
             </div>
             <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto items-center">
               <Button
@@ -125,9 +177,9 @@ export default function BusTicketingApp() {
         {/* Hero Section */}
         {currentView === "search" && (
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Journey with NdoloTravel</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Journey with NdoloTravel</h2>{" "}
+            {/* Updated title */}
             <p className="text-xl text-gray-600 mb-8">Smart, fast, and reliable bus booking for Cameroon</p>
-
             {/* Search Form */}
             <Card className="max-w-4xl mx-auto">
               <CardHeader>
@@ -202,7 +254,6 @@ export default function BusTicketingApp() {
                 </Button>
               </CardContent>
             </Card>
-
             {/* AI Recommendations */}
             <div className="mt-8 max-w-2xl mx-auto">
               <h3 className="text-lg font-semibold mb-4 flex items-center justify-center space-x-2">
@@ -217,7 +268,6 @@ export default function BusTicketingApp() {
                 ))}
               </div>
             </div>
-
             {/* Popular Routes */}
             <div className="mt-12">
               <h3 className="text-2xl font-bold mb-6">Popular Routes</h3>
@@ -514,7 +564,7 @@ export default function BusTicketingApp() {
 
       {/* AI Chatbot */}
       {showChatbot && (
-        <div className="fixed bottom-4 right-4 w-80 h-96 bg-white rounded-lg shadow-xl border z-50">
+        <div className="fixed bottom-4 right-4 w-80 h-96 bg-white rounded-lg shadow-xl border z-50 flex flex-col">
           <div className="bg-blue-600 text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Bot className="w-5 h-5" />
@@ -529,26 +579,47 @@ export default function BusTicketingApp() {
               ×
             </Button>
           </div>
-          <div className="p-4 h-64 overflow-y-auto">
-            <div className="space-y-4">
-              <div className="bg-gray-100 rounded-lg p-3 text-sm">
-                <p>👋 Hello! I'm your AI travel assistant. How can I help you today?</p>
+          <div className="p-4 flex-1 overflow-y-auto space-y-4">
+            {chatHistory.map((msg, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded-lg text-sm ${
+                  msg.type === "user"
+                    ? "bg-blue-100 text-blue-800 ml-auto max-w-[80%]"
+                    : "bg-gray-100 text-gray-800 mr-auto max-w-[80%]"
+                }`}
+              >
+                {msg.text}
               </div>
-              <div className="bg-gray-100 rounded-lg p-3 text-sm">
-                <p>I can help you with:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Finding the best routes</li>
-                  <li>Checking bus schedules</li>
-                  <li>Booking assistance</li>
-                  <li>Payment support</li>
-                </ul>
-              </div>
+            ))}
+            {/* Quick action buttons */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={() => handleAIChatOption("find_routes")}>
+                Find Routes
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleAIChatOption("check_schedules")}>
+                Check Schedules
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleAIChatOption("booking_assistance")}>
+                Booking Assistance
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleAIChatOption("payment_support")}>
+                Payment Support
+              </Button>
             </div>
           </div>
           <div className="p-4 border-t">
             <div className="flex space-x-2">
-              <Input placeholder="Type your message..." className="flex-1" />
-              <Button size="sm">
+              <Input
+                placeholder="Type your message..."
+                className="flex-1"
+                value={userMessage}
+                onChange={(e) => setUserMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") handleSendMessage()
+                }}
+              />
+              <Button size="sm" onClick={handleSendMessage}>
                 <MessageCircle className="w-4 h-4" />
               </Button>
             </div>
@@ -560,7 +631,7 @@ export default function BusTicketingApp() {
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose NdoloTravel?</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose NdoloTravel?</h2> {/* Updated title */}
             <p className="text-xl text-gray-600">Built for Cameroon, powered by AI</p>
           </div>
 
