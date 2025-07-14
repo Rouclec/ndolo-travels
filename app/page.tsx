@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Clock, Users, Bot, MessageCircle, Smartphone, Settings } from "lucide-react"
+import { MapPin, Clock, Users, Bot, MessageCircle, Smartphone, Settings, Download } from "lucide-react"
 import WhatsAppPreferences from "@/components/whatsapp-preferences"
 import PhoneInput from "@/components/phone-input"
 import PaymentProcessing from "@/components/payment-processing"
 import { sendTicketViaWhatsApp, sendWelcomeMessage } from "@/lib/whatsapp"
+import jsPDF from "jspdf" // Import jspdf
+import QRCode from "qrcode" // Import qrcode
 
 export default function BusTicketingApp() {
   const [currentView, setCurrentView] = useState("search")
@@ -34,6 +36,7 @@ export default function BusTicketingApp() {
     phone: "",
     email: "",
   })
+  const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<any>(null)
 
   // AI Chatbot state
   const [chatHistory, setChatHistory] = useState([
@@ -110,6 +113,62 @@ export default function BusTicketingApp() {
     setCurrentView("booking")
   }
 
+  const handleDownloadTicket = async () => {
+    if (!confirmedBookingDetails) return
+
+    const doc = new jsPDF()
+
+    // Add title
+    doc.setFontSize(22)
+    doc.text("NdoloTravel E-Ticket", 105, 20, { align: "center" })
+
+    // Add booking details
+    doc.setFontSize(12)
+    let yPos = 40
+    const addDetail = (label: string, value: string) => {
+      doc.text(`${label}:`, 20, yPos)
+      doc.setFont("helvetica", "bold")
+      doc.text(value, 60, yPos)
+      doc.setFont("helvetica", "normal")
+      yPos += 10
+    }
+
+    addDetail("Booking ID", confirmedBookingDetails.bookingId)
+    addDetail("Route", `${confirmedBookingDetails.from} → ${confirmedBookingDetails.to}`)
+    addDetail("Date", confirmedBookingDetails.date)
+    addDetail("Time", confirmedBookingDetails.time)
+    addDetail("Passenger", confirmedBookingDetails.passengerName)
+    addDetail("Amount Paid", confirmedBookingDetails.amount)
+
+    // Add important notes
+    yPos += 15
+    doc.setFontSize(10)
+    doc.text("Important Notes:", 20, yPos)
+    yPos += 7
+    doc.text("• Show this ticket to the driver.", 20, yPos)
+    yPos += 7
+    doc.text("• Arrive 15 minutes before departure.", 20, yPos)
+    yPos += 7
+    doc.text("• Keep your phone charged for verification.", 20, yPos)
+
+    // Generate QR Code
+    try {
+      const qrCodeDataUrl = await QRCode.toDataURL(confirmedBookingDetails.bookingId, {
+        width: 150,
+        margin: 2,
+      })
+      doc.addImage(qrCodeDataUrl, "PNG", 75, yPos + 10, 60, 60) // x, y, width, height
+      doc.setFontSize(10)
+      doc.text("Scan for Validation", 105, yPos + 75, { align: "center" })
+    } catch (err) {
+      console.error("Failed to generate QR code:", err)
+      doc.text("QR Code could not be generated.", 105, yPos + 10, { align: "center" })
+    }
+
+    // Save the PDF
+    doc.save(`NdoloTravel_Ticket_${confirmedBookingDetails.bookingId}.pdf`)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       {/* Header */}
@@ -118,9 +177,9 @@ export default function BusTicketingApp() {
           <div className="flex flex-col sm:flex-row sm:justify-between items-center h-auto sm:h-16 py-2 sm:py-0">
             <div className="flex items-center space-x-2 mb-2 sm:mb-0">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">NT</span> {/* Updated initials */}
+                <span className="text-white font-bold text-sm">NT</span>
               </div>
-              <h1 className="text-xl font-bold text-gray-900">NdoloTravel</h1> {/* Updated name */}
+              <h1 className="text-xl font-bold text-gray-900">NdoloTravel</h1>
             </div>
             <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto items-center">
               <Button
@@ -177,8 +236,7 @@ export default function BusTicketingApp() {
         {/* Hero Section */}
         {currentView === "search" && (
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Journey with NdoloTravel</h2>{" "}
-            {/* Updated title */}
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Journey with NdoloTravel</h2>
             <p className="text-xl text-gray-600 mb-8">Smart, fast, and reliable bus booking for Cameroon</p>
             {/* Search Form */}
             <Card className="max-w-4xl mx-auto">
@@ -467,7 +525,7 @@ export default function BusTicketingApp() {
         )}
 
         {/* Booking Confirmation */}
-        {currentView === "confirmation" && (
+        {currentView === "confirmation" && confirmedBookingDetails && (
           <div className="max-w-2xl mx-auto text-center">
             <div className="mb-8">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -485,15 +543,17 @@ export default function BusTicketingApp() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Booking ID:</span>
-                    <span className="font-semibold">NT-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+                    <span className="font-semibold">{confirmedBookingDetails.bookingId}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Route:</span>
-                    <span className="font-semibold">Douala → Yaoundé</span>
+                    <span className="font-semibold">
+                      {confirmedBookingDetails.from} → {confirmedBookingDetails.to}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Date:</span>
-                    <span className="font-semibold">{searchData.date || "Today"}</span>
+                    <span className="font-semibold">{confirmedBookingDetails.date}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payment:</span>
@@ -507,7 +567,7 @@ export default function BusTicketingApp() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total:</span>
-                    <span className="font-bold text-lg">2500 FCFA</span>
+                    <span className="font-bold text-lg">{confirmedBookingDetails.amount}</span>
                   </div>
                 </div>
               </CardContent>
@@ -525,6 +585,10 @@ export default function BusTicketingApp() {
             </div>
 
             <div className="space-y-4">
+              <Button onClick={handleDownloadTicket} className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Download Ticket (PDF)
+              </Button>
               <Button onClick={() => setCurrentView("search")} className="w-full">
                 Book Another Trip
               </Button>
@@ -539,23 +603,26 @@ export default function BusTicketingApp() {
       {showPaymentProcessing && (
         <PaymentProcessing
           paymentMethod={selectedPayment}
-          amount="2500 FCFA"
+          amount="2500 FCFA" // This should ideally come from the selected route
           phoneNumber={passengerData.phone}
           onSuccess={() => {
             setShowPaymentProcessing(false)
+            const newBookingId = `NT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+            const details = {
+              bookingId: newBookingId,
+              from: searchData.from || "Douala", // Use searchData for dynamic values
+              to: searchData.to || "Yaoundé", // Use searchData for dynamic values
+              date: searchData.date || "Today",
+              time: "08:00 AM", // Placeholder, should be dynamic
+              passengerName: `${passengerData.firstName} ${passengerData.lastName}`,
+              amount: "2500 FCFA", // Placeholder, should be dynamic
+            }
+            setConfirmedBookingDetails(details) // Store details for confirmation and download
             setCurrentView("confirmation")
             // Send WhatsApp messages
             if (passengerData.firstName) {
               sendWelcomeMessage(passengerData.phone, passengerData.firstName)
-              sendTicketViaWhatsApp(passengerData.phone, {
-                bookingId: `NT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                from: "Douala",
-                to: "Yaoundé",
-                date: searchData.date || "Today",
-                time: "08:00 AM",
-                passengerName: `${passengerData.firstName} ${passengerData.lastName}`,
-                amount: "2500 FCFA",
-              })
+              sendTicketViaWhatsApp(passengerData.phone, details) // Pass the stored details
             }
           }}
           onCancel={() => setShowPaymentProcessing(false)}
@@ -631,7 +698,7 @@ export default function BusTicketingApp() {
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose NdoloTravel?</h2> {/* Updated title */}
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose NdoloTravel?</h2>
             <p className="text-xl text-gray-600">Built for Cameroon, powered by AI</p>
           </div>
 
